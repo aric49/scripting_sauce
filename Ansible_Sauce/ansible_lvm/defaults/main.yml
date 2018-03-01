@@ -1,0 +1,5 @@
+---
+# defaults file for ansible_lvm
+data_disk: /dev/sdb
+vg_name: "datavg"
+lv_name: "datalv"
