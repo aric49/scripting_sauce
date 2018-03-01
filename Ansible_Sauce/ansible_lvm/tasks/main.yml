@@ -1,0 +1,32 @@
+---
+# tasks file for ansible_lvm
+- name: Create partition on Drive
+  parted:
+    device: "{{ data_disk }}"
+    number: 1
+    flags: [ lvm ]
+    state: present
+
+- name: Create Volume Group for Disk
+  lvg:
+    vg: "{{ vg_name }}"
+    pvs: "{{ data_disk }}1"
+
+- name: Create LVM configuration for drive
+  lvol:
+    vg: "{{ vg_name }}"
+    lv: "{{ lv_name }}"
+    pvs: "{{ data_disk }}1"
+    size: +100%FREE
+
+- name: Create Filesystem on volume
+  filesystem:
+    fstype: xfs
+    dev: "/dev/mapper/{{ vg_name }}-{{ lv_name }}"
+
+- name: Mount Data Disk
+  mount:
+    path: "{{ mount_path }}"
+    src: "/dev/mapper/{{ vg_name }}-{{ lv_name }}"
+    state: mounted
+    fstype: xfs
