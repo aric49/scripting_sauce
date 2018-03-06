@@ -1,0 +1,58 @@
+---
+#NOTE: Export AWS Credentials as environment variables
+#NOTE: Secret variables in vault.yml
+- name: Create SnapShot of EC2 Instance With Drives, Send Notification
+  hosts: localhost
+
+  tasks:
+    - name: SnapShot EC2 Instance
+      ec2_ami:
+        name: TestAMIAnsible
+        state: present
+        instance_id: "{{ instance_id }}"
+        root_device_name: /dev/sda1
+        no_reboot: true
+        device_mapping:
+          - device_name: /dev/sda1
+            size: 100
+            delete_on_termination: true
+            volume_type: gp2
+          - device_name: /dev/sdc
+            size: 100
+            delete_on_termination: true
+            volume_type: gp2
+          - device_name: /dev/sdb
+            size: 100
+            delete_on_termination: true
+            volume_type: gp2
+      register: snapshot_created
+      ignore_errors: true
+
+    - name: Send Notification about SnapShot
+      twilio:
+        msg: "Snapshot has been successfully been created for Instance. Name: {{ snapshot_created.name }} -- Image ID: {{ snapshot_created.image_id }} -- Creation Date: {{ snapshot_created.creationDate }}"
+        from_number: "{{ twil_from_number }}"
+        account_sid: "{{ twil_account_sid }}"
+        auth_token: "{{ twil_auth_token }}"
+        to_number:
+          - "{{ twil_to_number }}"
+      when: snapshot_created | changed
+
+    - name: Send notificatoin about SnapShot when failed
+      twilio:
+        msg: "SnapShot for instance failed to complete. Details: {{ snapshot_created }}"
+        from_number: "{{ twil_from_number }}"
+        account_sid: "{{ twil_account_sid }}"
+        auth_token: "{{ twil_auth_token }}"
+        to_number:
+          - "{{ twil_to_number }}"
+      when: (snapshot_created | failed) or (snapshot_created | skipped)
+
+
+    - name: Debug out
+      debug:
+        var: snapshot_created
+
+#Resize Partitions
+#growpart /dev/xvda 1
+#resize2fs /dev/xvda1
